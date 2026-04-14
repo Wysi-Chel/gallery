@@ -20,7 +20,7 @@ if not firebase_admin._apps:
         cred = credentials.Certificate("serviceAccountKey.json")
 
     firebase_admin.initialize_app(cred, {
-        "storageBucket": "YOUR_PROJECT_ID.appspot.com"
+        "storageBucket": "prj_Ixulp52EKXuuU9TkI3zub9WLVhEn.appspot.com"
     })
 
 db = firestore.client()
@@ -98,4 +98,45 @@ def delete(photo_id):
             blob.delete()
         db.collection("photos").document(photo_id).delete()
         flash("Photo deleted.", "success")
+    return redirect(url_for("index"))
+
+    @app.route("/upload", methods=["POST"])
+def upload():
+    try:
+        if "photo" not in request.files:
+            flash("No file selected.", "error")
+            return redirect(url_for("index"))
+
+        file    = request.files["photo"]
+        caption = request.form.get("caption", "").strip()
+        section = request.form.get("section", "gallery")
+
+        if file.filename == "":
+            flash("No file selected.", "error")
+            return redirect(url_for("index"))
+
+        if file and allowed_file(file.filename):
+            ext      = file.filename.rsplit(".", 1)[1].lower()
+            filename = f"{uuid.uuid4().hex}.{ext}"
+
+            blob = bucket.blob(f"photos/{filename}")
+            blob.upload_from_file(file, content_type=file.content_type)
+            blob.make_public()
+            public_url = blob.public_url
+
+            db.collection("photos").add({
+                "filename":    filename,
+                "url":         public_url,
+                "caption":     caption,
+                "section":     section,
+                "uploaded_at": firestore.SERVER_TIMESTAMP
+            })
+            flash("Photo uploaded!", "success")
+        else:
+            flash("Invalid file type.", "error")
+
+    except Exception as e:
+        print(f"UPLOAD ERROR: {e}")
+        flash(f"Upload failed: {str(e)}", "error")
+
     return redirect(url_for("index"))
