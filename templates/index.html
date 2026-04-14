@@ -145,6 +145,41 @@
       .gallery-grid { grid-template-columns: repeat(2, 1fr); }
       footer, .flash-wrap { padding: 2rem 1.5rem; }
     }
+    /* ── TILT FX ── */
+.tilt {
+  transform-style: preserve-3d;
+  transition: transform 0.08s ease-out, box-shadow 0.3s ease;
+  will-change: transform;
+}
+
+.tilt:hover {
+  box-shadow:
+    0 20px 60px rgba(0,0,0,0.4),
+    0 0 30px rgba(78,205,196,0.08);
+}
+
+.tilt .tilt-inner {
+  transform: translateZ(20px);
+  transition: transform 0.08s ease-out;
+}
+
+/* Shine overlay */
+.tilt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(255,255,255,0.06) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 2;
+}
+
+.tilt:hover::after { opacity: 1; }
   </style>
 </head>
 <body>
@@ -219,7 +254,7 @@
     <div class="featured-grid">
       {% for i in range(3) %}
         {% if i < featured|length %}
-          <div class="photo-slot" {% if i == 0 %}style="min-height:560px;"{% else %}style="min-height:275px;"{% endif %}>
+          <div class="photo-slot tilt" {% if i == 0 %}style="min-height:560px;"{% else %}style="min-height:275px;"{% endif %}>
             <img src="{{ featured[i].url }}" alt="{{ featured[i].caption }}" />
             <form method="POST" action="/delete/{{ featured[i].id }}">
               <button type="submit" class="delete-btn" onclick="return confirm('Remove this photo?')">Remove</button>
@@ -254,7 +289,7 @@
     <div class="gallery-grid">
       {% if gallery %}
         {% for photo in gallery %}
-          <div class="gallery-item" onclick="openLightbox('{{ photo.url }}', '{{ photo.caption or '' }}')">
+          <div class="gallery-item tilt" onclick="openLightbox('{{ photo.url }}', '{{ photo.caption or '' }}')">
             <img src="{{ photo.url }}" alt="{{ photo.caption }}" loading="lazy"/>
             {% if photo.caption %}<div class="caption-overlay">{{ photo.caption }}</div>{% endif %}
             <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()">
@@ -341,5 +376,34 @@
     });
   }, 3500);
 </script>
+// ── TILT FX ──
+function initTilt() {
+  document.querySelectorAll('.tilt').forEach(el => {
+    el.addEventListener('mousemove', e => {
+      const rect = el.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+
+      const rotateX = ((y - cy) / cy) * -10;
+      const rotateY = ((x - cx) / cx) * 10;
+
+      const pctX = (x / rect.width) * 100;
+      const pctY = (y / rect.height) * 100;
+
+      el.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02,1.02,1.02)`;
+      el.style.setProperty('--mouse-x', `${pctX}%`);
+      el.style.setProperty('--mouse-y', `${pctY}%`);
+    });
+
+    el.addEventListener('mouseleave', () => {
+      el.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale3d(1,1,1)';
+    });
+  });
+}
+
+// Init on load and re-init if gallery updates
+document.addEventListener('DOMContentLoaded', initTilt);
 </body>
 </html>
