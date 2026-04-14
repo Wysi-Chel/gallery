@@ -5,16 +5,26 @@ import traceback
 from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 import firebase_admin
-from firebase_admin import credentials, firestore, storage
+from firebase_admin import credentials, firestore
+import cloudinary
+import cloudinary.uploader
 
-# ── Flask app — must be top-level for Vercel ──
+# ── Flask ──
 app = Flask(__name__, template_folder="../templates")
-app.secret_key = "mygallery2026-supersecret-xyz789"
+app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret")
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-# ── Firebase Init ──
+# ── Cloudinary Init ──
+cloudinary.config(
+    cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key    = os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret = os.environ.get("CLOUDINARY_API_SECRET"),
+    secure     = True
+)
+
+# ── Firebase Init (Firestore only, no Storage) ──
 def init_firebase():
     if not firebase_admin._apps:
         cred_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
@@ -23,13 +33,10 @@ def init_firebase():
             cred = credentials.Certificate(cred_dict)
         else:
             cred = credentials.Certificate("serviceAccountKey.json")
-
-        bucket_name = os.environ.get("FIREBASE_BUCKET", "gallery-7c513.appspot.com")
-        firebase_admin.initialize_app(cred, {"storageBucket": bucket_name})
+        firebase_admin.initialize_app(cred)
 
 init_firebase()
 db = firestore.client()
-bucket = storage.bucket()
 
 
 def allowed_file(filename):
@@ -76,21 +83,27 @@ def upload():
             return redirect(url_for("index"))
 
         if file and allowed_file(file.filename):
-            ext      = file.filename.rsplit(".", 1)[1].lower()
-            filename = f"{uuid.uuid4().hex}.{ext}"
+            # Upload to Cloudinary
+            result = cloudinary.uploader.upload(
+                file,
+                folder="couple_gallery",
+                public_id=uuid.uuid4().hex,
+                overwrite=False,
+                resource_type="image"
+            )
 
-            blob = bucket.blob(f"photos/{filename}")
-            blob.upload_from_file(file, content_type=file.content_type)
-            blob.make_public()
-            public_url = blob.public_url
+            public_url  = result["secure_url"]
+            public_id   = result["public_id"]
 
+            # Save metadata to Firestore
             db.collection("photos").add({
-                "filename":    filename,
                 "url":         public_url,
+                "public_id":   public_id,
                 "caption":     caption,
                 "section":     section,
                 "uploaded_at": firestore.SERVER_TIMESTAMP
             })
+
             flash("Photo uploaded!", "success")
         else:
             flash("Invalid file type.", "error")
@@ -109,9 +122,10 @@ def delete(photo_id):
         doc = db.collection("photos").document(photo_id).get()
         if doc.exists:
             data = doc.to_dict()
-            blob = bucket.blob(f"photos/{data['filename']}")
-            if blob.exists():
-                blob.delete()
+            # Delete from Cloudinary
+            if data.get("public_id"):
+                cloudinary.uploader.destroy(data["public_id"])
+            # Delete from Firestore
             db.collection("photos").document(photo_id).delete()
             flash("Photo deleted.", "success")
     except Exception as e:
