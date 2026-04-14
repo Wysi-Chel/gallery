@@ -148,22 +148,11 @@
     /* ── TILT FX ── */
 .tilt {
   transform-style: preserve-3d;
-  transition: transform 0.08s ease-out, box-shadow 0.3s ease;
+  transform: perspective(900px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1);
+  transition: transform 120ms ease-out, box-shadow 220ms ease;
   will-change: transform;
 }
 
-.tilt:hover {
-  box-shadow:
-    0 20px 60px rgba(0,0,0,0.4),
-    0 0 30px rgba(78,205,196,0.08);
-}
-
-.tilt .tilt-inner {
-  transform: translateZ(20px);
-  transition: transform 0.08s ease-out;
-}
-
-/* Shine overlay */
 .tilt::after {
   content: '';
   position: absolute;
@@ -175,11 +164,19 @@
   );
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 220ms ease;
   z-index: 2;
 }
 
-.tilt:hover::after { opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+  .tilt:hover {
+    box-shadow:
+      0 20px 60px rgba(0,0,0,0.4),
+      0 0 30px rgba(78,205,196,0.08);
+  }
+
+  .tilt:hover::after { opacity: 1; }
+}
   </style>
 </head>
 <body>
@@ -378,34 +375,76 @@
     });
   }, 3500);
   // ── TILT FX ──
-function initTilt() {
-  document.querySelectorAll('.tilt').forEach(el => {
-    el.addEventListener('mousemove', e => {
+function bindGalleryLightbox() {
+  document.querySelectorAll('.gallery-item[data-url]').forEach(el => {
+    if (el.dataset.lightboxBound === '1') return;
+    el.dataset.lightboxBound = '1';
+
+    el.addEventListener('click', () => {
+      openLightbox(el.dataset.url || '', el.dataset.caption || '');
+    });
+  });
+}
+
+function initTilt(root = document) {
+  const supportsHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  root.querySelectorAll('.tilt').forEach(el => {
+    if (el.dataset.tiltBound === '1') return;
+    el.dataset.tiltBound = '1';
+    if (!supportsHover) return;
+
+    let rafId = null;
+
+    const resetTilt = () => {
+      el.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+      el.style.setProperty('--mouse-x', '50%');
+      el.style.setProperty('--mouse-y', '50%');
+    };
+
+    el.addEventListener('pointermove', e => {
+      if (e.pointerType && e.pointerType !== 'mouse') return;
+
       const rect = el.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const cx = rect.width / 2;
       const cy = rect.height / 2;
 
-      const rotateX = ((y - cy) / cy) * -10;
-      const rotateY = ((x - cx) / cx) * 10;
-
+      const rotateX = ((y - cy) / cy) * -9;
+      const rotateY = ((x - cx) / cx) * 9;
       const pctX = (x / rect.width) * 100;
       const pctY = (y / rect.height) * 100;
 
-      el.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02,1.02,1.02)`;
-      el.style.setProperty('--mouse-x', `${pctX}%`);
-      el.style.setProperty('--mouse-y', `${pctY}%`);
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        el.style.transform = `perspective(900px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.02, 1.02, 1.02)`;
+        el.style.setProperty('--mouse-x', `${pctX.toFixed(2)}%`);
+        el.style.setProperty('--mouse-y', `${pctY.toFixed(2)}%`);
+      });
     });
 
-    el.addEventListener('mouseleave', () => {
-      el.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale3d(1,1,1)';
+    el.addEventListener('pointerleave', () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      resetTilt();
     });
+
+    resetTilt();
   });
 }
 
-// Init on load and re-init if gallery updates
-document.addEventListener('DOMContentLoaded', initTilt);
+function initInteractiveEffects() {
+  bindGalleryLightbox();
+  initTilt();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initInteractiveEffects);
+} else {
+  initInteractiveEffects();
+}
 </script>
 </body>
 </html>
