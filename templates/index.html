@@ -289,7 +289,7 @@
     <div class="gallery-grid">
       {% if gallery %}
         {% for photo in gallery %}
-          <<div class="gallery-item tilt"
+          <div class="gallery-item tilt"
      data-url="{{ photo.url }}"
      data-caption="{{ photo.caption or '' }}">
             <img src="{{ photo.url }}" alt="{{ photo.caption }}" loading="lazy"/>
