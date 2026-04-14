@@ -20,13 +20,16 @@
       --accent-3:     #76e5c2;
       --accent-soft:  rgba(78,205,196,0.08);
       --blue:         #3a86b8;
+      --hero-mouse-x: 50%;
+      --hero-mouse-y: 50%;
     }
     html { scroll-behavior: smooth; }
     body { background-color: var(--bg); color: var(--text-primary); font-family: 'Inter', sans-serif; font-weight: 300; min-height: 100vh; overflow-x: hidden; }
 
     /* HERO */
-    .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; position: relative; border-bottom: 1px solid var(--border); overflow: hidden; }
-    .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 55% at 30% 60%, rgba(58,134,184,0.10) 0%, transparent 65%), radial-gradient(ellipse 55% 50% at 70% 35%, rgba(78,205,196,0.10) 0%, transparent 65%); pointer-events: none; }
+    .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; position: relative; border-bottom: 1px solid var(--border); overflow: hidden; --hero-mouse-x: 50%; --hero-mouse-y: 50%; }
+    .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle 420px at var(--hero-mouse-x) var(--hero-mouse-y), rgba(17,32,32,0.24) 0%, rgba(13,26,26,0.14) 45%, transparent 78%), radial-gradient(ellipse 60% 55% at 30% 60%, rgba(58,134,184,0.07) 0%, transparent 65%), radial-gradient(ellipse 55% 50% at 70% 35%, rgba(78,205,196,0.06) 0%, transparent 65%); pointer-events: none; }
+    .hero > * { position: relative; z-index: 1; }
     .hero-eyebrow { font-size: 0.64rem; letter-spacing: 0.38em; text-transform: uppercase; color: var(--accent); margin-bottom: 1.5rem; }
     .hero-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(3rem, 10vw, 7rem); font-weight: 300; line-height: 1; color: var(--text-primary); }
     .hero-title em { font-style: italic; background: linear-gradient(135deg, var(--accent-3), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
@@ -435,7 +438,64 @@ function initTilt(root = document) {
   });
 }
 
+function initHeroGradientHover() {
+  const hero = document.querySelector('.hero');
+  if (!hero) return;
+
+  const supportsHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (!supportsHover) return;
+
+  let currentX = 50;
+  let currentY = 50;
+  let targetX = 50;
+  let targetY = 50;
+  let rafId = null;
+
+  const tick = () => {
+    currentX += (targetX - currentX) * 0.1;
+    currentY += (targetY - currentY) * 0.1;
+
+    hero.style.setProperty('--hero-mouse-x', `${currentX.toFixed(2)}%`);
+    hero.style.setProperty('--hero-mouse-y', `${currentY.toFixed(2)}%`);
+
+    const dx = Math.abs(targetX - currentX);
+    const dy = Math.abs(targetY - currentY);
+    if (dx > 0.03 || dy > 0.03) {
+      rafId = requestAnimationFrame(tick);
+    } else {
+      rafId = null;
+    }
+  };
+
+  const queueTick = () => {
+    if (!rafId) rafId = requestAnimationFrame(tick);
+  };
+
+  const setMouseTarget = (clientX, clientY) => {
+    const rect = hero.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const x = ((clientX - rect.left) / rect.width) * 100;
+    const y = ((clientY - rect.top) / rect.height) * 100;
+    targetX = Math.max(0, Math.min(100, x));
+    targetY = Math.max(0, Math.min(100, y));
+    queueTick();
+  };
+
+  hero.addEventListener('pointermove', e => {
+    if (e.pointerType && e.pointerType !== 'mouse') return;
+    setMouseTarget(e.clientX, e.clientY);
+  });
+
+  hero.addEventListener('pointerleave', () => {
+    targetX = 50;
+    targetY = 50;
+    queueTick();
+  });
+}
+
 function initInteractiveEffects() {
+  initHeroGradientHover();
   bindGalleryLightbox();
   initTilt();
 }
