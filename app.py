@@ -95,6 +95,3 @@ def delete(photo_id):
         flash("Photo deleted.", "success")
     return redirect(url_for("index"))
 
-
-if __name__ == "__main__":
-    app.run(debug=True)
