@@ -14,7 +14,9 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 # Download your service account key from Firebase Console:
 # Project Settings → Service Accounts → Generate New Private Key
 # Save it as "serviceAccountKey.json" in this folder
-cred = credentials.Certificate("serviceAccountKey.json")
+cred = credentials.Certificate("import json
+cred_dict = json.loads(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON"))
+cred = credentials.Certificate(cred_dict)")
 firebase_admin.initialize_app(cred, {
     # Replace with your actual bucket (Firebase Console → Storage)
     "storageBucket": "YOUR_PROJECT_ID.appspot.com"
