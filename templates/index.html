@@ -96,10 +96,10 @@
     .photo-placeholder svg { width: 26px; height: 26px; opacity: 0.25; }
 
     /* GALLERY */
-    .gallery-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-    .gallery-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1px; background: var(--border-soft); border: 1px solid var(--border); }
-    .gallery-item { background: var(--bg); overflow: hidden; position: relative; aspect-ratio: 3/4; cursor: pointer; }
-    .gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.55s cubic-bezier(0.25,0.46,0.45,0.94), filter 0.35s; filter: brightness(0.88) saturate(0.88); }
+    .gallery-section { background: linear-gradient(180deg, #072c26 0%, #05251f 100%); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .gallery-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 8px; gap: 14px; }
+    .gallery-item { background: var(--bg); overflow: hidden; position: relative; cursor: pointer; border-radius: 14px; grid-row-end: span 28; }
+    .gallery-item img { width: 100%; height: auto; object-fit: cover; display: block; transition: transform 0.55s cubic-bezier(0.25,0.46,0.45,0.94), filter 0.35s; filter: brightness(0.88) saturate(0.88); border-radius: inherit; }
     .gallery-item:hover img { transform: scale(1.05); filter: brightness(1) saturate(1.05); }
     .gallery-item .caption-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 1.2rem 1rem; background: linear-gradient(to top, rgba(8,15,15,0.85), transparent); font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.95rem; color: var(--text-primary); opacity: 0; transform: translateY(5px); transition: opacity 0.3s, transform 0.3s; }
     .gallery-item:hover .caption-overlay { opacity: 1; transform: translateY(0); }
@@ -134,7 +134,8 @@
     /* LIGHTBOX */
     .lightbox { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
     .lightbox.active { opacity: 1; pointer-events: all; }
-    .lightbox img { max-width: 90vw; max-height: 86vh; object-fit: contain; border: 1px solid var(--border); }
+    .lightbox img { max-width: 90vw; max-height: 86vh; object-fit: contain; border: 1px solid var(--border); border-radius: 12px; transform: translateY(12px) scale(0.96); opacity: 0; transition: transform 0.28s ease, opacity 0.28s ease; }
+    .lightbox.active img { transform: translateY(0) scale(1); opacity: 1; }
     .lightbox-close { position: absolute; top: 1.5rem; right: 2rem; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.2s; }
     .lightbox-close:hover { color: var(--accent); }
     .lightbox-caption { position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%); font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 1rem; color: var(--text-muted); }
@@ -145,7 +146,11 @@
       section { padding: 4rem 1.5rem; }
       .featured-grid { grid-template-columns: 1fr; }
       .photo-slot:first-child { grid-row: span 1; min-height: 300px; }
-      .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+      .gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 7px; gap: 10px; }
+      .gallery-item { border-radius: 12px; }
+      .gallery-item:active { transform: scale(0.985); }
+      .lightbox img { max-width: 94vw; max-height: 78vh; }
+      .lightbox-caption { width: 92vw; text-align: center; bottom: 1.2rem; }
       footer, .flash-wrap { padding: 2rem 1.5rem; }
     }
     /* ── TILT FX ── */
@@ -302,7 +307,7 @@
       {% else %}
         <div class="gallery-empty" onclick="openModal()">
           <span>No photos yet</span>
-          Click here or the Upload button to add your first photo.
+          Click here or the Upload button to add photo.
         </div>
       {% endif %}
     </div>
@@ -341,7 +346,7 @@
 
 <!-- FOOTER -->
 <footer>
-  <p class="footer-names">Your Name &amp; Her Name</p>
+  <p class="footer-names">Chel &amp; Ianna</p>
   <p>Made with love &nbsp;·&nbsp; <span id="year"></span></p>
 </footer>
 
@@ -387,6 +392,56 @@ function bindGalleryLightbox() {
       openLightbox(el.dataset.url || '', el.dataset.caption || '');
     });
   });
+}
+
+function layoutGalleryMasonry() {
+  const grid = document.querySelector('.gallery-grid');
+  if (!grid) return;
+
+  const styles = window.getComputedStyle(grid);
+  const rowSize = parseFloat(styles.getPropertyValue('grid-auto-rows')) || 8;
+  const rowGap = parseFloat(styles.getPropertyValue('row-gap')) || 14;
+
+  grid.querySelectorAll('.gallery-item').forEach(item => {
+    const img = item.querySelector('img');
+    if (!img) return;
+
+    const imageHeight = img.getBoundingClientRect().height;
+    if (!imageHeight) return;
+
+    const span = Math.ceil((imageHeight + rowGap) / (rowSize + rowGap));
+    item.style.gridRowEnd = `span ${Math.max(span, 16)}`;
+  });
+}
+
+function initGalleryMasonry() {
+  const grid = document.querySelector('.gallery-grid');
+  if (!grid) return;
+
+  let rafId = null;
+  const queueLayout = () => {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      layoutGalleryMasonry();
+    });
+  };
+
+  grid.querySelectorAll('.gallery-item img').forEach(img => {
+    if (img.dataset.masonryBound === '1') return;
+    img.dataset.masonryBound = '1';
+
+    if (img.complete) queueLayout();
+    img.addEventListener('load', queueLayout, { passive: true });
+    img.addEventListener('error', queueLayout, { passive: true });
+  });
+
+  if (window.__galleryMasonryResizeBound !== true) {
+    window.addEventListener('resize', queueLayout, { passive: true });
+    window.__galleryMasonryResizeBound = true;
+  }
+
+  queueLayout();
 }
 
 function initTilt(root = document) {
@@ -497,6 +552,7 @@ function initHeroGradientHover() {
 function initInteractiveEffects() {
   initHeroGradientHover();
   bindGalleryLightbox();
+  initGalleryMasonry();
   initTilt();
 }
 
