@@ -103,17 +103,111 @@
 
     /* GALLERY */
     .gallery-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-    .gallery-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1px; background: var(--border-soft); border: 1px solid var(--border); }
-    .gallery-item { background: var(--bg); overflow: hidden; position: relative; aspect-ratio: 3/4; cursor: pointer; }
-    .gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.55s cubic-bezier(0.25,0.46,0.45,0.94), filter 0.35s; filter: brightness(0.88) saturate(0.88); }
-    .gallery-item:hover img { transform: scale(1.05); filter: brightness(1) saturate(1.05); }
-    .gallery-item .caption-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 1.2rem 1rem; background: linear-gradient(to top, rgba(8,15,15,0.85), transparent); font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.95rem; color: var(--text-primary); opacity: 0; transform: translateY(5px); transition: opacity 0.3s, transform 0.3s; }
+    .gallery-shell { max-width: 1200px; margin: 0 auto; }
+    .gallery-scene, .gallery-a3d { display: grid; }
+    .gallery-scene {
+      overflow: hidden;
+      min-height: clamp(26rem, 58vw, 36rem);
+      perspective: 35em;
+      mask: linear-gradient(90deg, transparent, #000 15% 85%, transparent);
+      -webkit-mask: linear-gradient(90deg, transparent, #000 15% 85%, transparent);
+      border: 1px solid var(--border);
+      background: radial-gradient(ellipse at center, rgba(78,205,196,0.10) 0%, rgba(8,15,15,0) 60%), var(--bg);
+    }
+    .gallery-a3d {
+      place-self: center;
+      transform-style: preserve-3d;
+      animation: carouselSpin 32s linear infinite;
+    }
+    @keyframes carouselSpin { to { rotate: y 1turn; } }
+    .gallery-item {
+      --card-w: clamp(10.5rem, 20vw, 17.5rem);
+      --ba: calc(1turn / var(--n));
+      grid-area: 1 / 1;
+      width: var(--card-w);
+      aspect-ratio: 7 / 10;
+      position: relative;
+      border-radius: 1.25rem;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+      backface-visibility: hidden;
+      cursor: pointer;
+      transform: rotateY(calc(var(--i) * var(--ba))) translateZ(calc(-1 * (.5 * var(--card-w) + .5rem) / tan(.5 * var(--ba))));
+      box-shadow: 0 16px 45px rgba(0,0,0,0.35);
+    }
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.6s cubic-bezier(0.25,0.46,0.45,0.94), filter 0.4s;
+      filter: brightness(0.88) saturate(0.9);
+    }
+    .gallery-item:hover img { transform: scale(1.04); filter: brightness(1) saturate(1.05); }
+    .gallery-item .caption-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 1.1rem 0.9rem;
+      background: linear-gradient(to top, rgba(8,15,15,0.86), transparent);
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.28s, transform 0.28s;
+    }
     .gallery-item:hover .caption-overlay { opacity: 1; transform: translateY(0); }
-    .gallery-item .delete-btn { position: absolute; top: 0.6rem; right: 0.6rem; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.55); font-size: 0.62rem; padding: 0.28rem 0.55rem; cursor: pointer; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0; transition: opacity 0.25s, color 0.2s; font-family: 'Inter', sans-serif; }
+    .gallery-item .delete-btn {
+      position: absolute;
+      top: 0.6rem;
+      right: 0.6rem;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.55);
+      font-size: 0.62rem;
+      padding: 0.28rem 0.55rem;
+      cursor: pointer;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0;
+      transition: opacity 0.25s, color 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
     .gallery-item:hover .delete-btn { opacity: 1; }
     .gallery-item .delete-btn:hover { color: #ff6b6b; }
-    .gallery-empty { grid-column: 1 / -1; padding: 5rem 2rem; text-align: center; color: var(--text-muted); font-size: 0.78rem; letter-spacing: 0.12em; cursor: pointer; }
+    .gallery-fallback {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1px;
+      background: var(--border-soft);
+      border: 1px solid var(--border);
+    }
+    .gallery-fallback .gallery-item {
+      --n: 1;
+      --i: 0;
+      width: 100%;
+      transform: none;
+      border-radius: 0;
+      aspect-ratio: 3 / 4;
+      box-shadow: none;
+    }
+    .gallery-empty {
+      padding: 5rem 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      cursor: pointer;
+      border: 1px dashed var(--border);
+      background: var(--bg);
+    }
     .gallery-empty span { display: block; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 1.3rem; margin-bottom: 0.5rem; color: var(--text-primary); }
+    @media (prefers-reduced-motion: reduce) {
+      .gallery-a3d { animation-duration: 128s; }
+    }
 
     /* QUOTE */
     .quote-section { text-align: center; background: var(--bg); padding: 8rem 3rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
@@ -151,7 +245,8 @@
       section { padding: 4rem 1.5rem; }
       .featured-grid { grid-template-columns: 1fr; }
       .photo-slot:first-child { grid-row: span 1; min-height: 300px; }
-      .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+      .gallery-scene { min-height: 23rem; mask: none; -webkit-mask: none; }
+      .gallery-fallback { grid-template-columns: repeat(2, 1fr); }
       footer, .flash-wrap { padding: 2rem 1.5rem; }
     }
     /* ── TILT FX ── */
@@ -290,29 +385,48 @@
 
 <!-- GALLERY -->
 <section class="gallery-section" id="gallery">
-  <div style="max-width:1200px; margin:0 auto;">
+  <div class="gallery-shell">
     <p class="section-label">Gallery</p>
     <h2 class="section-title">Every <em>little</em> moment</h2>
-    <div class="gallery-grid">
-      {% if gallery %}
-        {% for photo in gallery %}
-          <div class="gallery-item tilt"
-     data-url="{{ photo.url }}"
-     data-caption="{{ photo.caption or '' }}">
-            <img src="{{ photo.url }}" alt="{{ photo.caption }}" loading="lazy"/>
-            {% if photo.caption %}<div class="caption-overlay">{{ photo.caption }}</div>{% endif %}
-            <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()">
-              <button type="submit" class="delete-btn" onclick="return confirm('Delete this photo?')">Delete</button>
-            </form>
+    {% if gallery %}
+      {% if gallery|length >= 3 %}
+        <div class="gallery-scene">
+          <div class="gallery-a3d" style="--n: {{ gallery|length }};">
+            {% for photo in gallery %}
+              <article class="gallery-item"
+                style="--i: {{ loop.index0 }};"
+                data-url="{{ photo.url }}"
+                data-caption="{{ photo.caption or '' }}">
+                <img src="{{ photo.url }}" alt="{{ photo.caption }}" loading="lazy"/>
+                {% if photo.caption %}<div class="caption-overlay">{{ photo.caption }}</div>{% endif %}
+                <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()">
+                  <button type="submit" class="delete-btn" onclick="return confirm('Delete this photo?')">Delete</button>
+                </form>
+              </article>
+            {% endfor %}
           </div>
-        {% endfor %}
+        </div>
       {% else %}
-        <div class="gallery-empty" onclick="openModal()">
-          <span>No photos yet</span>
-          Click here or the Upload button to add your first photo.
+        <div class="gallery-fallback">
+          {% for photo in gallery %}
+            <article class="gallery-item"
+              data-url="{{ photo.url }}"
+              data-caption="{{ photo.caption or '' }}">
+              <img src="{{ photo.url }}" alt="{{ photo.caption }}" loading="lazy"/>
+              {% if photo.caption %}<div class="caption-overlay">{{ photo.caption }}</div>{% endif %}
+              <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()">
+                <button type="submit" class="delete-btn" onclick="return confirm('Delete this photo?')">Delete</button>
+              </form>
+            </article>
+          {% endfor %}
         </div>
       {% endif %}
-    </div>
+    {% else %}
+      <div class="gallery-empty" onclick="openModal()">
+        <span>No photos yet</span>
+        Click here or the Upload button to add your first photo.
+      </div>
+    {% endif %}
   </div>
 </section>
 
