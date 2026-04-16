@@ -30,7 +30,7 @@
     #star-container { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
     .star { position: absolute; background: #fff; border-radius: 50%; opacity: 0.8; animation: twinkle var(--duration, 3s) infinite ease-in-out; will-change: transform, opacity, top; }
     @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
-    body > *:not(#star-container) { position: relative; z-index: 1; }
+    body > *:not(#star-container):not(.modal-overlay):not(.lightbox) { position: relative; z-index: 1; }
 
     /* HERO */
     .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; position: relative; border-bottom: 1px solid var(--border); overflow: hidden; --hero-mouse-x: 50%; --hero-mouse-y: 50%; }
@@ -66,8 +66,8 @@
     .section-title em { font-style: italic; color: var(--accent-3); }
 
     /* MODAL */
-    .modal-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.82); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; backdrop-filter: blur(6px); }
-    .modal-overlay.active { opacity: 1; pointer-events: all; }
+    .modal-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.82); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.3s, visibility 0.3s; backdrop-filter: blur(6px); }
+    .modal-overlay.active { opacity: 1; visibility: visible; pointer-events: all; }
     .modal { background: var(--surface); border: 1px solid rgba(78,205,196,0.18); width: min(480px, 92vw); padding: 2.5rem; position: relative; }
     .modal h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 300; color: var(--text-primary); margin-bottom: 0.4rem; }
     .modal p.sub { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2rem; }
@@ -234,8 +234,8 @@
     .footer-names { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-style: italic; background: linear-gradient(90deg, var(--accent-3), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.5rem; }
 
     /* LIGHTBOX */
-    .lightbox { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-    .lightbox.active { opacity: 1; pointer-events: all; }
+    .lightbox { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.3s, visibility 0.3s; }
+    .lightbox.active { opacity: 1; visibility: visible; pointer-events: all; }
     .lightbox img { max-width: 90vw; max-height: 86vh; object-fit: contain; border: 1px solid var(--border); }
     .lightbox-close { position: absolute; top: 1.5rem; right: 2rem; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.2s; }
     .lightbox-close:hover { color: var(--accent); }
