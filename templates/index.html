@@ -6,6 +6,7 @@
   <title>Us — A Gallery</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}"/>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -25,7 +26,11 @@
       --hero-mouse-y: 50%;
     }
     html { scroll-behavior: smooth; }
-    body { background-color: var(--bg); color: var(--text-primary); font-family: 'Inter', sans-serif; font-weight: 300; min-height: 100vh; overflow-x: hidden; }
+    body { background-color: var(--bg); color: var(--text-primary); font-family: 'Inter', sans-serif; font-weight: 300; min-height: 100vh; overflow-x: hidden; position: relative; }
+    #star-container { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .star { position: absolute; background: #fff; border-radius: 50%; opacity: 0.8; animation: twinkle var(--duration, 3s) infinite ease-in-out; will-change: transform, opacity, top; }
+    @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+    body > *:not(#star-container) { position: relative; z-index: 1; }
 
     /* HERO */
     .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; position: relative; border-bottom: 1px solid var(--border); overflow: hidden; --hero-mouse-x: 50%; --hero-mouse-y: 50%; }
@@ -184,6 +189,7 @@
   </style>
 </head>
 <body>
+<div id="star-container"></div>
 
 <!-- HERO -->
 <section class="hero" id="home">
@@ -506,7 +512,105 @@ function initHeroGradientHover() {
   });
 }
 
+function initStarWarp() {
+  const container = document.getElementById('star-container');
+  if (!container) return;
+
+  container.innerHTML = '';
+  const count = window.matchMedia('(max-width: 768px)').matches ? 55 : 90;
+  const stars = [];
+
+  for (let i = 0; i < count; i++) {
+    const starEl = document.createElement('div');
+    starEl.className = 'star';
+
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    const isStatic = Math.random() < 0.3;
+    const speed = isStatic ? 0 : 0.2 + Math.random() * 0.6;
+    const size = isStatic ? 1 + Math.random() : 1 + Math.random() * 2;
+
+    starEl.style.left = `${x}%`;
+    starEl.style.top = `${y}%`;
+    starEl.style.width = `${size}px`;
+    starEl.style.height = `${size}px`;
+    starEl.style.setProperty('--duration', `${2 + Math.random() * 4}s`);
+    starEl.style.animationDelay = `${Math.random() * 5}s`;
+
+    container.appendChild(starEl);
+    stars.push({ el: starEl, initialY: y, speed });
+  }
+
+  const applyWarp = (scroll, velocity) => {
+    const stretch = Math.max(1, Math.min(1 + Math.abs(velocity) * 0.15, 4));
+
+    stars.forEach(star => {
+      if (star.speed === 0) {
+        star.el.style.transform = 'scaleY(1)';
+        return;
+      }
+
+      let pos = (star.initialY - (scroll * star.speed * 0.05)) % 100;
+      if (pos < 0) pos += 100;
+
+      star.el.style.top = `${pos}%`;
+      star.el.style.transform = `scaleY(${stretch})`;
+    });
+  };
+
+  if (typeof Lenis === 'function') {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smooth: true
+    });
+
+    document.querySelectorAll('a[href^="#"]').forEach(link => {
+      link.addEventListener('click', event => {
+        const href = link.getAttribute('href');
+        const target = href ? document.querySelector(href) : null;
+        if (!target) return;
+        event.preventDefault();
+        lenis.scrollTo(target, { offset: -40 });
+      });
+    });
+
+    const tick = time => {
+      lenis.raf(time);
+      requestAnimationFrame(tick);
+    };
+
+    requestAnimationFrame(tick);
+
+    lenis.on('scroll', ({ scroll, velocity }) => {
+      applyWarp(scroll, velocity || 0);
+    });
+
+    applyWarp(window.scrollY || 0, 0);
+    return;
+  }
+
+  let lastScroll = window.scrollY || 0;
+  let lastTime = performance.now();
+
+  const onScroll = () => {
+    const now = performance.now();
+    const scroll = window.scrollY || 0;
+    const dt = Math.max(16, now - lastTime);
+    const velocity = (scroll - lastScroll) / dt;
+
+    applyWarp(scroll, velocity);
+
+    lastScroll = scroll;
+    lastTime = now;
+  };
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+}
+
 function initInteractiveEffects() {
+  initStarWarp();
   initHeroGradientHover();
   bindGalleryLightbox();
   initTilt();
@@ -520,4 +624,3 @@ if (document.readyState === 'loading') {
 </script>
 </body>
 </html>
-
