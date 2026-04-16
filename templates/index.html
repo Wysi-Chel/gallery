@@ -116,24 +116,6 @@
       -webkit-mask: none;
       isolation: isolate;
     }
-    .gallery-scene::before,
-    .gallery-scene::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: clamp(4.5rem, 14%, 8.5rem);
-      pointer-events: none;
-      z-index: 3;
-    }
-    .gallery-scene::before {
-      left: 0;
-      background: linear-gradient(to right, rgba(246, 239, 234, 0.95) 0%, rgba(246, 239, 234, 0.65) 42%, rgba(246, 239, 234, 0) 100%);
-    }
-    .gallery-scene::after {
-      right: 0;
-      background: linear-gradient(to left, rgba(246, 239, 234, 0.95) 0%, rgba(246, 239, 234, 0.65) 42%, rgba(246, 239, 234, 0) 100%);
-    }
     .gallery-a3d {
       place-self: center;
       transform-style: preserve-3d;
