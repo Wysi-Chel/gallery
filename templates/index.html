@@ -106,13 +106,33 @@
     .gallery-shell { max-width: 1200px; margin: 0 auto; }
     .gallery-scene, .gallery-a3d { display: grid; }
     .gallery-scene {
+      position: relative;
       overflow: hidden;
       min-height: clamp(26rem, 58vw, 36rem);
-      perspective: 35em;
-      mask: linear-gradient(90deg, transparent, #000 15% 85%, transparent);
-      -webkit-mask: linear-gradient(90deg, transparent, #000 15% 85%, transparent);
-      border: 1px solid var(--border);
-      background: radial-gradient(ellipse at center, rgba(78,205,196,0.10) 0%, rgba(8,15,15,0) 60%), var(--bg);
+      perspective: 42em;
+      border: none;
+      background: transparent;
+      mask: none;
+      -webkit-mask: none;
+      isolation: isolate;
+    }
+    .gallery-scene::before,
+    .gallery-scene::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: clamp(4.5rem, 14%, 8.5rem);
+      pointer-events: none;
+      z-index: 3;
+    }
+    .gallery-scene::before {
+      left: 0;
+      background: linear-gradient(to right, rgba(246, 239, 234, 0.95) 0%, rgba(246, 239, 234, 0.65) 42%, rgba(246, 239, 234, 0) 100%);
+    }
+    .gallery-scene::after {
+      right: 0;
+      background: linear-gradient(to left, rgba(246, 239, 234, 0.95) 0%, rgba(246, 239, 234, 0.65) 42%, rgba(246, 239, 234, 0) 100%);
     }
     .gallery-a3d {
       place-self: center;
@@ -132,7 +152,7 @@
       border: 1px solid rgba(255,255,255,0.08);
       backface-visibility: hidden;
       cursor: pointer;
-      transform: rotateY(calc(var(--i) * var(--ba))) translateZ(calc(-1 * (.5 * var(--card-w) + .5rem) / tan(.5 * var(--ba))));
+      transform: rotateY(calc(var(--i) * var(--ba))) translateZ(calc((.5 * var(--card-w) + .5rem) / tan(.5 * var(--ba))));
       box-shadow: 0 16px 45px rgba(0,0,0,0.35);
     }
     .gallery-item img {
@@ -245,7 +265,7 @@
       section { padding: 4rem 1.5rem; }
       .featured-grid { grid-template-columns: 1fr; }
       .photo-slot:first-child { grid-row: span 1; min-height: 300px; }
-      .gallery-scene { min-height: 23rem; mask: none; -webkit-mask: none; }
+      .gallery-scene { min-height: 23rem; }
       .gallery-fallback { grid-template-columns: repeat(2, 1fr); }
       footer, .flash-wrap { padding: 2rem 1.5rem; }
     }
