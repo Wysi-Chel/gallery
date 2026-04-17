@@ -104,28 +104,35 @@
     /* GALLERY */
     .gallery-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
     .gallery-shell { max-width: 1200px; margin: 0 auto; }
-    .gallery-scene, .gallery-a3d { display: grid; }
     .gallery-scene {
+      display: block;
       position: relative;
-      overflow: hidden;
-      min-height: clamp(26rem, 58vw, 36rem);
-      perspective: 42em;
+      overflow-x: auto;
+      overflow-y: hidden;
+      min-height: clamp(18rem, 44vw, 25rem);
       border: none;
       background: transparent;
-      mask: none;
-      -webkit-mask: none;
       isolation: isolate;
+      scroll-snap-type: x proximity;
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(78,205,196,0.4) transparent;
     }
     .gallery-a3d {
-      place-self: center;
-      transform-style: preserve-3d;
-      animation: carouselSpin 32s linear infinite;
+      display: flex;
+      gap: 1rem;
+      width: max-content;
+      padding: 0.4rem 0 0.8rem;
     }
-    @keyframes carouselSpin { to { rotate: y 1turn; } }
+    .gallery-scene::-webkit-scrollbar { height: 8px; }
+    .gallery-scene::-webkit-scrollbar-track { background: transparent; }
+    .gallery-scene::-webkit-scrollbar-thumb {
+      background: rgba(78,205,196,0.35);
+      border-radius: 999px;
+    }
     .gallery-item {
       --card-w: clamp(10.5rem, 20vw, 17.5rem);
-      --ba: calc(1turn / var(--n));
-      grid-area: 1 / 1;
+      flex: 0 0 var(--card-w);
       width: var(--card-w);
       aspect-ratio: 7 / 10;
       position: relative;
@@ -134,7 +141,8 @@
       border: 1px solid rgba(255,255,255,0.08);
       backface-visibility: hidden;
       cursor: pointer;
-      transform: rotateY(calc(var(--i) * var(--ba))) translateZ(calc((.5 * var(--card-w) + .5rem) / tan(.5 * var(--ba))));
+      transform: none;
+      scroll-snap-align: start;
       box-shadow: 0 16px 45px rgba(0,0,0,0.35);
     }
     .gallery-item img {
@@ -207,10 +215,6 @@
       background: var(--bg);
     }
     .gallery-empty span { display: block; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 1.3rem; margin-bottom: 0.5rem; color: var(--text-primary); }
-    @media (prefers-reduced-motion: reduce) {
-      .gallery-a3d { animation-duration: 128s; }
-    }
-
     /* QUOTE */
     .quote-section { text-align: center; background: var(--bg); padding: 8rem 3rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
     .quote-section::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(78,205,196,0.05) 0%, transparent 70%); pointer-events: none; }
@@ -247,7 +251,8 @@
       section { padding: 4rem 1.5rem; }
       .featured-grid { grid-template-columns: 1fr; }
       .photo-slot:first-child { grid-row: span 1; min-height: 300px; }
-      .gallery-scene { min-height: 23rem; }
+      .gallery-scene { min-height: 21rem; }
+      .gallery-item { --card-w: clamp(10rem, 64vw, 14.5rem); }
       .gallery-fallback { grid-template-columns: repeat(2, 1fr); }
       footer, .flash-wrap { padding: 2rem 1.5rem; }
     }
@@ -628,6 +633,19 @@ function initHeroGradientHover() {
   });
 }
 
+function initHorizontalGalleryScroll() {
+  document.querySelectorAll('.gallery-scene').forEach(scene => {
+    if (scene.dataset.horizontalScrollBound === '1') return;
+    scene.dataset.horizontalScrollBound = '1';
+
+    scene.addEventListener('wheel', e => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      scene.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
+  });
+}
+
 function initStarWarp() {
   const container = document.getElementById('star-container');
   if (!container) return;
@@ -728,6 +746,7 @@ function initStarWarp() {
 function initInteractiveEffects() {
   initStarWarp();
   initHeroGradientHover();
+  initHorizontalGalleryScroll();
   bindGalleryLightbox();
   initTilt();
 }
