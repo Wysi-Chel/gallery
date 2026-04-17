@@ -104,6 +104,28 @@
     /* GALLERY */
     .gallery-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
     .gallery-shell { max-width: 1200px; margin: 0 auto; }
+    .gallery-tools {
+      display: flex;
+      justify-content: flex-end;
+      margin: -1.4rem 0 1.5rem;
+    }
+    .gallery-toggle-btn {
+      background: var(--accent-soft);
+      border: 1px solid rgba(78,205,196,0.25);
+      color: var(--accent);
+      font-size: 0.64rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      padding: 0.42rem 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      font-family: 'Inter', sans-serif;
+      font-weight: 300;
+    }
+    .gallery-toggle-btn:hover {
+      background: rgba(78,205,196,0.15);
+      border-color: var(--accent);
+    }
     .gallery-scene, .gallery-a3d { display: grid; }
     .gallery-scene {
       position: relative;
@@ -247,6 +269,7 @@
       section { padding: 4rem 1.5rem; }
       .featured-grid { grid-template-columns: 1fr; }
       .photo-slot:first-child { grid-row: span 1; min-height: 300px; }
+      .gallery-tools { margin: -1.3rem 0 1.1rem; justify-content: flex-start; }
       .gallery-scene { min-height: 23rem; }
       .gallery-fallback { grid-template-columns: repeat(2, 1fr); }
       footer, .flash-wrap { padding: 2rem 1.5rem; }
@@ -392,7 +415,10 @@
     <h2 class="section-title">Every <em>little</em> moment</h2>
     {% if gallery %}
       {% if gallery|length >= 3 %}
-        <div class="gallery-scene">
+        <div class="gallery-tools">
+          <button type="button" class="gallery-toggle-btn" data-gallery-toggle aria-pressed="false">See normal gallery</button>
+        </div>
+        <div class="gallery-scene" data-gallery-carousel>
           <div class="gallery-a3d" style="--n: {{ gallery|length }};">
             {% for photo in gallery %}
               <article class="gallery-item"
@@ -407,6 +433,19 @@
               </article>
             {% endfor %}
           </div>
+        </div>
+        <div class="gallery-fallback" data-gallery-normal hidden>
+          {% for photo in gallery %}
+            <article class="gallery-item"
+              data-url="{{ photo.url }}"
+              data-caption="{{ photo.caption or '' }}">
+              <img src="{{ photo.url }}" alt="{{ photo.caption }}" loading="lazy"/>
+              {% if photo.caption %}<div class="caption-overlay">{{ photo.caption }}</div>{% endif %}
+              <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()">
+                <button type="submit" class="delete-btn" onclick="return confirm('Delete this photo?')">Delete</button>
+              </form>
+            </article>
+          {% endfor %}
         </div>
       {% else %}
         <div class="gallery-fallback">
@@ -747,6 +786,34 @@ function initCarouselMomentumControl() {
   });
 }
 
+function initGalleryViewToggle() {
+  document.querySelectorAll('[data-gallery-toggle]').forEach(btn => {
+    if (btn.dataset.galleryToggleBound === '1') return;
+    btn.dataset.galleryToggleBound = '1';
+
+    const shell = btn.closest('.gallery-shell');
+    if (!shell) return;
+
+    const carouselView = shell.querySelector('[data-gallery-carousel]');
+    const normalView = shell.querySelector('[data-gallery-normal]');
+    if (!carouselView || !normalView) return;
+
+    const setMode = mode => {
+      const showNormal = mode === 'normal';
+      normalView.hidden = !showNormal;
+      carouselView.hidden = showNormal;
+      btn.textContent = showNormal ? 'Back to carousel' : 'See normal gallery';
+      btn.setAttribute('aria-pressed', showNormal ? 'true' : 'false');
+    };
+
+    setMode('carousel');
+    btn.addEventListener('click', () => {
+      const nextMode = normalView.hidden ? 'normal' : 'carousel';
+      setMode(nextMode);
+    });
+  });
+}
+
 function initStarWarp() {
   const container = document.getElementById('star-container');
   if (!container) return;
@@ -847,6 +914,7 @@ function initStarWarp() {
 function initInteractiveEffects() {
   initStarWarp();
   initHeroGradientHover();
+  initGalleryViewToggle();
   initCarouselMomentumControl();
   bindGalleryLightbox();
   initTilt();
