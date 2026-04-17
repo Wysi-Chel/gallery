@@ -30,7 +30,7 @@
     #star-container { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
     .star { position: absolute; background: #fff; border-radius: 50%; opacity: 0.8; animation: twinkle var(--duration, 3s) infinite ease-in-out; will-change: transform, opacity, top; }
     @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
-    body > *:not(#star-container):not(.modal-overlay):not(.lightbox) { position: relative; z-index: 1; }
+    body > *:not(#star-container):not(.modal-overlay):not(.gallery-collage-overlay):not(.lightbox) { position: relative; z-index: 1; }
 
     /* HERO */
     .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; position: relative; border-bottom: 1px solid var(--border); overflow: hidden; --hero-mouse-x: 50%; --hero-mouse-y: 50%; }
@@ -160,7 +160,8 @@
       transform: rotateY(calc(var(--i) * var(--ba))) translateZ(calc((.5 * var(--card-w) + .5rem) / tan(.5 * var(--ba))));
       box-shadow: 0 16px 45px rgba(0,0,0,0.35);
     }
-    .gallery-item img {
+    .gallery-item img,
+    .gallery-collage-item img {
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -168,8 +169,10 @@
       transition: transform 0.6s cubic-bezier(0.25,0.46,0.45,0.94), filter 0.4s;
       filter: brightness(0.88) saturate(0.9);
     }
-    .gallery-item:hover img { transform: scale(1.04); filter: brightness(1) saturate(1.05); }
-    .gallery-item .caption-overlay {
+    .gallery-item:hover img,
+    .gallery-collage-item:hover img { transform: scale(1.04); filter: brightness(1) saturate(1.05); }
+    .gallery-item .caption-overlay,
+    .gallery-collage-item .caption-overlay {
       position: absolute;
       bottom: 0;
       left: 0;
@@ -184,8 +187,10 @@
       transform: translateY(6px);
       transition: opacity 0.28s, transform 0.28s;
     }
-    .gallery-item:hover .caption-overlay { opacity: 1; transform: translateY(0); }
-    .gallery-item .delete-btn {
+    .gallery-item:hover .caption-overlay,
+    .gallery-collage-item:hover .caption-overlay { opacity: 1; transform: translateY(0); }
+    .gallery-item .delete-btn,
+    .gallery-collage-item .delete-btn {
       position: absolute;
       top: 0.6rem;
       right: 0.6rem;
@@ -201,8 +206,10 @@
       transition: opacity 0.25s, color 0.2s;
       font-family: 'Inter', sans-serif;
     }
-    .gallery-item:hover .delete-btn { opacity: 1; }
-    .gallery-item .delete-btn:hover { color: #ff6b6b; }
+    .gallery-item:hover .delete-btn,
+    .gallery-collage-item:hover .delete-btn { opacity: 1; }
+    .gallery-item .delete-btn:hover,
+    .gallery-collage-item .delete-btn:hover { color: #ff6b6b; }
     .gallery-fallback {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -230,6 +237,79 @@
       background: var(--bg);
     }
     .gallery-empty span { display: block; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 1.3rem; margin-bottom: 0.5rem; color: var(--text-primary); }
+    .gallery-collage-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 250;
+      background: rgba(0,0,0,0.86);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.3s, visibility 0.3s;
+      backdrop-filter: blur(6px);
+    }
+    .gallery-collage-overlay.active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: all;
+    }
+    .gallery-collage-modal {
+      width: min(1100px, 94vw);
+      max-height: 88vh;
+      background: var(--surface);
+      border: 1px solid rgba(78,205,196,0.2);
+      padding: 1.15rem;
+      overflow: auto;
+    }
+    .gallery-collage-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.9rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.8rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .gallery-collage-head h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 1.45rem;
+      color: var(--text-primary);
+    }
+    .gallery-collage-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.25rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .gallery-collage-close:hover { color: var(--accent); }
+    .gallery-collage-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      grid-auto-flow: dense;
+      gap: 0.7rem;
+    }
+    .gallery-collage-item {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      aspect-ratio: 4 / 5;
+      cursor: pointer;
+    }
+    .gallery-collage-item:nth-child(7n + 1),
+    .gallery-collage-item:nth-child(7n + 4) {
+      grid-column: span 2;
+      grid-row: span 2;
+      aspect-ratio: auto;
+      min-height: 320px;
+    }
+    .gallery-collage-item:nth-child(7n + 6) { aspect-ratio: 1 / 1; }
     @media (prefers-reduced-motion: reduce) {
       .gallery-a3d { animation-duration: 128s; }
     }
@@ -272,6 +352,15 @@
       .gallery-tools { margin: -1.3rem 0 1.1rem; justify-content: flex-start; }
       .gallery-scene { min-height: 23rem; }
       .gallery-fallback { grid-template-columns: repeat(2, 1fr); }
+      .gallery-collage-modal { width: 94vw; max-height: 90vh; padding: 1rem; }
+      .gallery-collage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .gallery-collage-item:nth-child(7n + 1),
+      .gallery-collage-item:nth-child(7n + 4) {
+        grid-column: span 1;
+        grid-row: span 1;
+        min-height: 0;
+        aspect-ratio: 4 / 5;
+      }
       footer, .flash-wrap { padding: 2rem 1.5rem; }
     }
     /* ── TILT FX ── */
@@ -416,9 +505,9 @@
     {% if gallery %}
       {% if gallery|length >= 3 %}
         <div class="gallery-tools">
-          <button type="button" class="gallery-toggle-btn" data-gallery-toggle aria-pressed="false">See normal gallery</button>
+          <button type="button" class="gallery-toggle-btn" onclick="openGalleryCollage()">See full collage</button>
         </div>
-        <div class="gallery-scene" data-gallery-carousel>
+        <div class="gallery-scene">
           <div class="gallery-a3d" style="--n: {{ gallery|length }};">
             {% for photo in gallery %}
               <article class="gallery-item"
@@ -433,19 +522,6 @@
               </article>
             {% endfor %}
           </div>
-        </div>
-        <div class="gallery-fallback" data-gallery-normal hidden>
-          {% for photo in gallery %}
-            <article class="gallery-item"
-              data-url="{{ photo.url }}"
-              data-caption="{{ photo.caption or '' }}">
-              <img src="{{ photo.url }}" alt="{{ photo.caption }}" loading="lazy"/>
-              {% if photo.caption %}<div class="caption-overlay">{{ photo.caption }}</div>{% endif %}
-              <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()">
-                <button type="submit" class="delete-btn" onclick="return confirm('Delete this photo?')">Delete</button>
-              </form>
-            </article>
-          {% endfor %}
         </div>
       {% else %}
         <div class="gallery-fallback">
@@ -470,6 +546,30 @@
     {% endif %}
   </div>
 </section>
+
+{% if gallery and gallery|length >= 3 %}
+<div class="gallery-collage-overlay" id="galleryCollageModal" onclick="closeGalleryCollageOutside(event)">
+  <div class="gallery-collage-modal" role="dialog" aria-modal="true" aria-label="All gallery photos">
+    <div class="gallery-collage-head">
+      <h3>All Photos</h3>
+      <button type="button" class="gallery-collage-close" onclick="closeGalleryCollage()">&times;</button>
+    </div>
+    <div class="gallery-collage-grid">
+      {% for photo in gallery %}
+        <article class="gallery-collage-item"
+          data-url="{{ photo.url }}"
+          data-caption="{{ photo.caption or '' }}">
+          <img src="{{ photo.url }}" alt="{{ photo.caption }}" loading="lazy"/>
+          {% if photo.caption %}<div class="caption-overlay">{{ photo.caption }}</div>{% endif %}
+          <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()">
+            <button type="submit" class="delete-btn" onclick="return confirm('Delete this photo?')">Delete</button>
+          </form>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <!-- TIMELINE -->
 <section id="moments">
@@ -519,6 +619,19 @@
   function openModal() { document.getElementById('modalOverlay').classList.add('active'); }
   function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); }
   function closeModalOutside(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+  function openGalleryCollage() {
+    const modal = document.getElementById('galleryCollageModal');
+    if (!modal) return;
+    modal.classList.add('active');
+  }
+  function closeGalleryCollage() {
+    const modal = document.getElementById('galleryCollageModal');
+    if (!modal) return;
+    modal.classList.remove('active');
+  }
+  function closeGalleryCollageOutside(e) {
+    if (e.target === document.getElementById('galleryCollageModal')) closeGalleryCollage();
+  }
   function showFileName(input) {
     const chosen = document.getElementById('fileChosen');
     const count = input.files ? input.files.length : 0;
@@ -542,7 +655,7 @@
   }
   function closeLightbox() { document.getElementById('lightbox').classList.remove('active'); }
   document.getElementById('lightbox').addEventListener('click', function(e) { if (e.target === this) closeLightbox(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLightbox(); closeModal(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLightbox(); closeModal(); closeGalleryCollage(); } });
   setTimeout(() => {
     document.querySelectorAll('.flash').forEach(el => {
       el.style.transition = 'opacity 0.5s';
@@ -552,7 +665,7 @@
   }, 3500);
   // ── TILT FX ──
 function bindGalleryLightbox() {
-  document.querySelectorAll('.gallery-item[data-url]').forEach(el => {
+  document.querySelectorAll('.gallery-item[data-url], .gallery-collage-item[data-url]').forEach(el => {
     if (el.dataset.lightboxBound === '1') return;
     el.dataset.lightboxBound = '1';
 
@@ -786,34 +899,6 @@ function initCarouselMomentumControl() {
   });
 }
 
-function initGalleryViewToggle() {
-  document.querySelectorAll('[data-gallery-toggle]').forEach(btn => {
-    if (btn.dataset.galleryToggleBound === '1') return;
-    btn.dataset.galleryToggleBound = '1';
-
-    const shell = btn.closest('.gallery-shell');
-    if (!shell) return;
-
-    const carouselView = shell.querySelector('[data-gallery-carousel]');
-    const normalView = shell.querySelector('[data-gallery-normal]');
-    if (!carouselView || !normalView) return;
-
-    const setMode = mode => {
-      const showNormal = mode === 'normal';
-      normalView.hidden = !showNormal;
-      carouselView.hidden = showNormal;
-      btn.textContent = showNormal ? 'Back to carousel' : 'See normal gallery';
-      btn.setAttribute('aria-pressed', showNormal ? 'true' : 'false');
-    };
-
-    setMode('carousel');
-    btn.addEventListener('click', () => {
-      const nextMode = normalView.hidden ? 'normal' : 'carousel';
-      setMode(nextMode);
-    });
-  });
-}
-
 function initStarWarp() {
   const container = document.getElementById('star-container');
   if (!container) return;
@@ -914,7 +999,6 @@ function initStarWarp() {
 function initInteractiveEffects() {
   initStarWarp();
   initHeroGradientHover();
-  initGalleryViewToggle();
   initCarouselMomentumControl();
   bindGalleryLightbox();
   initTilt();
