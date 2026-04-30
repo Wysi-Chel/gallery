@@ -18,7 +18,7 @@ app = Flask(
     static_folder="../static",
     static_url_path="/static"
 )
-app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret")
+app.secret_key = os.environ.get("SECRET_KEY", "chelianna")
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.jinja_env.auto_reload = True
 
@@ -30,25 +30,103 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_SIZE_MB * 1024 * 1024
 
 # ── Cloudinary Init ──
 cloudinary.config(
-    cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME"),
-    api_key    = os.environ.get("CLOUDINARY_API_KEY"),
-    api_secret = os.environ.get("CLOUDINARY_API_SECRET"),
+    cloud_name = os.environ.get("dv5buodnd"),
+    api_key    = os.environ.get("713814164315271"),
+    api_secret = os.environ.get("f4vN-mNVkos0J0oiI2koRoXyDPk"),
     secure     = True
 )
 
+db = None
+firebase_init_error = None
+
+
+def load_cloudinary_config():
+    config = {
+        "cloud_name": os.environ.get("dv5buodnd"),
+        "api_key": os.environ.get("713814164315271"),
+        "api_secret": os.environ.get("f4vN-mNVkos0J0oiI2koRoXyDPk")
+    }
+
+    if all(config.values()):
+        return config
+
+    config_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "cloudinary.txt")
+    )
+    if not os.path.exists(config_path):
+        return config
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as fh:
+            lines = [line.strip() for line in fh.readlines() if line.strip()]
+
+        for idx, line in enumerate(lines):
+            lower = line.lower()
+            if lower == "cloud name" and idx + 1 < len(lines):
+                config["cloud_name"] = config["cloud_name"] or lines[idx + 1]
+            elif lower.startswith("api key"):
+                parts = line.split(" ", 2)
+                if len(parts) >= 3:
+                    config["api_key"] = config["api_key"] or parts[2]
+            elif lower.startswith("api secret"):
+                parts = line.split(" ", 2)
+                if len(parts) >= 3:
+                    config["api_secret"] = config["api_secret"] or parts[2]
+    except Exception as exc:
+        print(f"CLOUDINARY CONFIG READ ERROR: {exc}")
+
+    return config
+
+
+cloudinary_settings = load_cloudinary_config()
+cloudinary.config(
+    cloud_name=cloudinary_settings.get("cloud_name"),
+    api_key=cloudinary_settings.get("api_key"),
+    api_secret=cloudinary_settings.get("api_secret"),
+    secure=True
+)
+
+
+def cloudinary_ready():
+    return all([
+        cloudinary_settings.get("cloud_name"),
+        cloudinary_settings.get("api_key"),
+        cloudinary_settings.get("api_secret")
+    ])
+
+
 # ── Firebase Init (Firestore only, no Storage) ──
 def init_firebase():
-    if not firebase_admin._apps:
-        cred_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-        if cred_json:
-            cred_dict = json.loads(cred_json)
-            cred = credentials.Certificate(cred_dict)
-        else:
-            cred = credentials.Certificate("serviceAccountKey.json")
-        firebase_admin.initialize_app(cred)
+    global db, firebase_init_error
 
-init_firebase()
-db = firestore.client()
+    if db is not None:
+        return db
+
+    try:
+        if not firebase_admin._apps:
+            cred_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+            if cred_json:
+                cred_dict = json.loads(cred_json)
+                cred = credentials.Certificate(cred_dict)
+            else:
+                key_path = os.path.abspath(
+                    os.path.join(os.path.dirname(__file__), "..", "serviceAccountKey.json")
+                )
+                if not os.path.exists(key_path):
+                    raise FileNotFoundError(
+                        "Missing Firebase credentials. Set GOOGLE_APPLICATION_CREDENTIALS_JSON in Vercel."
+                    )
+                cred = credentials.Certificate(key_path)
+            firebase_admin.initialize_app(cred)
+
+        db = firestore.client()
+        firebase_init_error = None
+    except Exception as exc:
+        firebase_init_error = str(exc)
+        db = None
+        print(f"FIREBASE INIT ERROR: {firebase_init_error}")
+
+    return db
 
 
 def allowed_file(filename):
@@ -69,9 +147,13 @@ def get_file_size_bytes(file_storage):
 
 @app.route("/")
 def index():
+    current_db = init_firebase()
     try:
-        featured_ref = db.collection("photos").where("section", "==", "featured").limit(3)
-        gallery_ref  = db.collection("photos").where("section", "==", "gallery")
+        if current_db is None:
+            raise RuntimeError(firebase_init_error or "Firestore is not configured.")
+
+        featured_ref = current_db.collection("photos").where("section", "==", "featured").limit(3)
+        gallery_ref  = current_db.collection("photos").where("section", "==", "gallery")
 
         featured = sorted(
             [{"id": d.id, **d.to_dict()} for d in featured_ref.stream()],
@@ -105,7 +187,10 @@ def index():
         "index.html",
         featured=featured,
         gallery=gallery,
-        template_version=template_version
+        template_version=template_version,
+        firebase_ready=current_db is not None,
+        firebase_error=firebase_init_error,
+        cloudinary_ready=cloudinary_ready()
     )
 
 
@@ -119,9 +204,17 @@ def add_no_cache_headers(response):
     return response
 
 
-@app.route("/upload", methods=["POST"])
+@app.route("/upload", methods=["POST"])                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 def upload():
     try:
+        current_db = init_firebase()
+        if current_db is None:
+            flash("Firebase is not configured on this deployment yet.", "error")
+            return redirect(url_for("index"))
+        if not cloudinary_ready():
+            flash("Cloudinary is not configured on this deployment yet.", "error")
+            return redirect(url_for("index"))
+
         files = [f for f in request.files.getlist("photo") if f and f.filename]
         if not files:
             flash("No file selected.", "error")
@@ -153,7 +246,7 @@ def upload():
                     resource_type="image"
                 )
 
-                db.collection("photos").add({
+                current_db.collection("photos").add({
                     "url": result["secure_url"],
                     "public_id": result["public_id"],
                     "caption": caption,
@@ -190,6 +283,14 @@ def upload():
 @app.route("/replace/<photo_id>", methods=["POST"])
 def replace(photo_id):
     try:
+        current_db = init_firebase()
+        if current_db is None:
+            flash("Firebase is not configured on this deployment yet.", "error")
+            return redirect(url_for("index"))
+        if not cloudinary_ready():
+            flash("Cloudinary is not configured on this deployment yet.", "error")
+            return redirect(url_for("index"))
+
         if "photo" not in request.files:
             flash("No file selected for replacement.", "error")
             return redirect(url_for("index"))
@@ -206,7 +307,7 @@ def replace(photo_id):
             flash(f"Replacement failed: file must be {MAX_FILE_SIZE_MB}MB or less.", "error")
             return redirect(url_for("index"))
 
-        doc_ref = db.collection("photos").document(photo_id)
+        doc_ref = current_db.collection("photos").document(photo_id)
         doc = doc_ref.get()
         if not doc.exists:
             flash("Featured photo not found.", "error")
@@ -249,14 +350,19 @@ def replace(photo_id):
 @app.route("/delete/<photo_id>", methods=["POST"])
 def delete(photo_id):
     try:
-        doc = db.collection("photos").document(photo_id).get()
+        current_db = init_firebase()
+        if current_db is None:
+            flash("Firebase is not configured on this deployment yet.", "error")
+            return redirect(url_for("index"))
+
+        doc = current_db.collection("photos").document(photo_id).get()
         if doc.exists:
             data = doc.to_dict()
             # Delete from Cloudinary
             if data.get("public_id"):
                 cloudinary.uploader.destroy(data["public_id"])
             # Delete from Firestore
-            db.collection("photos").document(photo_id).delete()
+            current_db.collection("photos").document(photo_id).delete()
             flash("Photo deleted.", "success")
     except Exception as e:
         print(f"DELETE ERROR: {e}")
