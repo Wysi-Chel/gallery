@@ -12,7 +12,12 @@ import cloudinary
 import cloudinary.uploader
 
 # ── Flask ──
-app = Flask(__name__, template_folder="../templates")
+app = Flask(
+    __name__,
+    template_folder="../templates",
+    static_folder="../static",
+    static_url_path="/static"
+)
 app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret")
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.jinja_env.auto_reload = True
