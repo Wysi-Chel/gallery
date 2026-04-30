@@ -97,6 +97,10 @@
     .photo-slot .delete-btn { position: absolute; top: 0.6rem; right: 0.6rem; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.55); font-size: 0.65rem; padding: 0.3rem 0.6rem; cursor: pointer; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0; transition: opacity 0.25s, color 0.2s; font-family: 'Inter', sans-serif; }
     .photo-slot:hover .delete-btn { opacity: 1; }
     .photo-slot .delete-btn:hover { color: #ff6b6b; }
+    .featured-replace-form { position: absolute; top: 0.6rem; right: 0.6rem; z-index: 2; }
+    .featured-replace-form .replace-btn { opacity: 1; position: static; color: rgba(255,255,255,0.75); }
+    .featured-replace-form .replace-btn:hover { color: var(--accent-3); }
+    .replace-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
     .photo-placeholder { width: 100%; height: 100%; min-height: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; color: var(--text-muted); font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase; border: 1.5px dashed rgba(78,205,196,0.10); transition: border-color 0.3s, background 0.3s; cursor: pointer; }
     .photo-placeholder:hover { border-color: var(--accent); background: var(--accent-soft); }
     .photo-placeholder svg { width: 26px; height: 26px; opacity: 0.25; }
@@ -435,8 +439,8 @@
   <div class="modal">
     <button class="modal-close" onclick="closeModal()">✕</button>
     <h3>Upload Photos</h3>
-    <p class="sub">JPG, PNG, WEBP or GIF &nbsp;·&nbsp; Max 16MB per request &nbsp;·&nbsp; Saved to Cloudinary</p>
-    <form method="POST" action="/upload" enctype="multipart/form-data">
+    <p class="sub">JPG, PNG, WEBP or GIF &nbsp;·&nbsp; Max 25MB per upload &nbsp;·&nbsp; Saved to Cloudinary</p>
+    <form id="uploadForm" method="POST" action="/upload" enctype="multipart/form-data">
       <div class="form-group">
         <label>Caption</label>
         <input type="text" name="caption" placeholder="e.g. Golden hour together…" />
@@ -451,7 +455,7 @@
       <div class="form-group">
         <label>Photos</label>
         <div class="drop-zone" id="dropZone">
-          <input type="file" name="photo" id="fileInput" accept="image/*" multiple required onchange="showFileName(this)"/>
+          <input type="file" name="photo" id="fileInput" accept="image/*" required onchange="handleUploadFileChange(this)"/>
           <div class="drop-zone-icon">🖼</div>
           <p>Drag &amp; drop or click to choose files</p>
           <p class="file-chosen" id="fileChosen"></p>
@@ -472,8 +476,9 @@
         {% if i < featured|length %}
           <div class="photo-slot tilt" {% if i == 0 %}style="min-height:560px;"{% else %}style="min-height:275px;"{% endif %}>
             <img src="{{ featured[i].url }}" alt="{{ featured[i].caption }}" />
-            <form method="POST" action="/delete/{{ featured[i].id }}">
-              <button type="submit" class="delete-btn" onclick="return confirm('Remove this photo?')">Remove</button>
+            <form method="POST" action="/replace/{{ featured[i].id }}" enctype="multipart/form-data" class="featured-replace-form" onclick="event.stopPropagation()">
+              <input type="file" name="photo" accept="image/*" class="replace-input" onchange="submitFeaturedReplacement(this)" required />
+              <button type="button" class="delete-btn replace-btn" onclick="openFeaturedReplacement(this)">Replace</button>
             </form>
           </div>
         {% else %}
@@ -516,8 +521,8 @@
                 data-caption="{{ photo.caption or '' }}">
                 <img src="{{ photo.url }}" alt="{{ photo.caption }}" loading="lazy"/>
                 {% if photo.caption %}<div class="caption-overlay">{{ photo.caption }}</div>{% endif %}
-                <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()">
-                  <button type="submit" class="delete-btn" onclick="return confirm('Delete this photo?')">Delete</button>
+                <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()" onsubmit="event.stopPropagation(); return confirm('Delete this photo?')">
+                  <button type="submit" class="delete-btn">Delete</button>
                 </form>
               </article>
             {% endfor %}
@@ -531,8 +536,8 @@
               data-caption="{{ photo.caption or '' }}">
               <img src="{{ photo.url }}" alt="{{ photo.caption }}" loading="lazy"/>
               {% if photo.caption %}<div class="caption-overlay">{{ photo.caption }}</div>{% endif %}
-              <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()">
-                <button type="submit" class="delete-btn" onclick="return confirm('Delete this photo?')">Delete</button>
+              <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()" onsubmit="event.stopPropagation(); return confirm('Delete this photo?')">
+                <button type="submit" class="delete-btn">Delete</button>
               </form>
             </article>
           {% endfor %}
@@ -561,8 +566,8 @@
           data-caption="{{ photo.caption or '' }}">
           <img src="{{ photo.url }}" alt="{{ photo.caption }}" loading="lazy"/>
           {% if photo.caption %}<div class="caption-overlay">{{ photo.caption }}</div>{% endif %}
-          <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()">
-            <button type="submit" class="delete-btn" onclick="return confirm('Delete this photo?')">Delete</button>
+          <form method="POST" action="/delete/{{ photo.id }}" onclick="event.stopPropagation()" onsubmit="event.stopPropagation(); return confirm('Delete this photo?')">
+            <button type="submit" class="delete-btn">Delete</button>
           </form>
         </article>
       {% endfor %}
@@ -632,6 +637,8 @@
   function closeGalleryCollageOutside(e) {
     if (e.target === document.getElementById('galleryCollageModal')) closeGalleryCollage();
   }
+  const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+
   function showFileName(input) {
     const chosen = document.getElementById('fileChosen');
     const count = input.files ? input.files.length : 0;
@@ -641,13 +648,52 @@
     }
     chosen.textContent = count === 1 ? input.files[0].name : `${count} files selected`;
   }
+  function handleUploadFileChange(input) {
+    if (!input.files || !input.files.length) {
+      showFileName(input);
+      return;
+    }
+    const file = input.files[0];
+    if (file.size > MAX_UPLOAD_BYTES) {
+      const maxMb = Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024));
+      alert(`Selected file is too large. Please choose a photo up to ${maxMb}MB.`);
+      input.value = '';
+    }
+    showFileName(input);
+  }
+  function openFeaturedReplacement(button) {
+    const form = button.closest('form');
+    if (!form) return;
+    const input = form.querySelector('.replace-input');
+    if (input) input.click();
+  }
+  function submitFeaturedReplacement(input) {
+    if (!input.files || !input.files.length) return;
+    if (!confirm('Replace this featured photo?')) {
+      input.value = '';
+      return;
+    }
+    input.form.submit();
+  }
   const dz = document.getElementById('dropZone');
   dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
   dz.addEventListener('drop', () => {
     dz.classList.remove('dragover');
-    showFileName(document.getElementById('fileInput'));
+    handleUploadFileChange(document.getElementById('fileInput'));
   });
+  const uploadForm = document.getElementById('uploadForm');
+  if (uploadForm) {
+    uploadForm.addEventListener('submit', e => {
+      const input = document.getElementById('fileInput');
+      if (!input || !input.files || !input.files.length) return;
+      if (input.files[0].size > MAX_UPLOAD_BYTES) {
+        e.preventDefault();
+        const maxMb = Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024));
+        alert(`Selected file is too large. Please choose a photo up to ${maxMb}MB.`);
+      }
+    });
+  }
   function openLightbox(src, caption) {
     document.getElementById('lightboxImg').src = src;
     document.getElementById('lightboxCaption').textContent = caption;

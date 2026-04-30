@@ -4,6 +4,7 @@ import uuid
 import traceback
 from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import RequestEntityTooLarge
 import firebase_admin
 from firebase_admin import credentials, firestore
 import cloudinary
@@ -14,7 +15,9 @@ app = Flask(__name__, template_folder="../templates")
 app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret")
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = int(
+    os.environ.get("MAX_UPLOAD_SIZE_MB", "25")
+) * 1024 * 1024
 
 # ── Cloudinary Init ──
 cloudinary.config(
@@ -116,6 +119,62 @@ def upload():
     return redirect(url_for("index"))
 
 
+@app.route("/replace/<photo_id>", methods=["POST"])
+def replace(photo_id):
+    try:
+        if "photo" not in request.files:
+            flash("No file selected for replacement.", "error")
+            return redirect(url_for("index"))
+
+        file = request.files["photo"]
+        if file.filename == "":
+            flash("No file selected for replacement.", "error")
+            return redirect(url_for("index"))
+
+        if not allowed_file(file.filename):
+            flash("Invalid file type.", "error")
+            return redirect(url_for("index"))
+
+        doc_ref = db.collection("photos").document(photo_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            flash("Featured photo not found.", "error")
+            return redirect(url_for("index"))
+
+        data = doc.to_dict() or {}
+
+        # Upload the new image first so we do not lose the existing one if upload fails
+        result = cloudinary.uploader.upload(
+            file,
+            folder="couple_gallery",
+            public_id=uuid.uuid4().hex,
+            overwrite=False,
+            resource_type="image"
+        )
+
+        old_public_id = data.get("public_id")
+        if old_public_id:
+            try:
+                cloudinary.uploader.destroy(old_public_id)
+            except Exception as destroy_err:
+                # Keep replacement successful even if old asset cleanup fails
+                print(f"CLOUDINARY DESTROY WARNING: {destroy_err}")
+
+        doc_ref.update({
+            "url": result["secure_url"],
+            "public_id": result["public_id"],
+            "uploaded_at": firestore.SERVER_TIMESTAMP
+        })
+
+        flash("Featured photo replaced.", "success")
+    except Exception as e:
+        print(f"REPLACE ERROR: {e}")
+        traceback.print_exc()
+        flash(f"Replace failed: {str(e)}", "error")
+
+    return redirect(url_for("index"))
+
+
 @app.route("/delete/<photo_id>", methods=["POST"])
 def delete(photo_id):
     try:
@@ -132,4 +191,11 @@ def delete(photo_id):
         print(f"DELETE ERROR: {e}")
         flash("Delete failed.", "error")
 
+    return redirect(url_for("index"))
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_too_large(_error):
+    max_size_mb = app.config["MAX_CONTENT_LENGTH"] // (1024 * 1024)
+    flash(f"Upload too large. Maximum allowed size is {max_size_mb}MB.", "error")
     return redirect(url_for("index"))
