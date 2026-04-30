@@ -331,6 +331,9 @@
     .timeline-item { padding: 1.5rem 0 1.5rem 1.5rem; position: relative; border-bottom: 1px solid var(--border); }
     .timeline-item:last-child { border-bottom: none; }
     .timeline-item::before { content: ''; position: absolute; left: -0.25rem; top: 2rem; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+    .timeline-item.core-memory { background: linear-gradient(90deg, rgba(78,205,196,0.10), rgba(58,134,184,0.03)); border-left: 2px solid var(--accent); padding-left: 1.1rem; margin-left: -1.1rem; }
+    .timeline-item.core-memory .timeline-date { color: var(--accent-3); font-weight: 400; }
+    .timeline-item.core-memory .timeline-event { color: #eefcf7; }
     .timeline-date { font-size: 0.63rem; letter-spacing: 0.25em; color: var(--accent); text-transform: uppercase; margin-bottom: 0.4rem; }
     .timeline-event { font-family: 'Cormorant Garamond', serif; font-size: 1.25rem; font-weight: 300; color: var(--text-primary); }
     .timeline-note { margin-top: 0.3rem; font-size: 0.77rem; color: var(--text-muted); line-height: 1.6; }
@@ -598,7 +601,7 @@
         <p class="timeline-event">We became official</p>
         <p class="timeline-note"> — 11.04.2025 — and counting</p>
       </div>
-      <div class="timeline-item">
+      <div class="timeline-item core-memory">
         <p class="timeline-date">Core Memory</p>
         <p class="timeline-event">Hung Out at Euphoria and so much FUUUUN!</p>
         <p class="timeline-note"> — 04.26.2026</p>
