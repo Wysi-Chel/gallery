@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import traceback
+from datetime import datetime, timezone
 from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
@@ -13,6 +14,8 @@ import cloudinary.uploader
 # ── Flask ──
 app = Flask(__name__, template_folder="../templates")
 app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret")
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.jinja_env.auto_reload = True
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 MAX_FILE_SIZE_MB = int(os.environ.get("MAX_FILE_SIZE_MB", "25"))
@@ -80,7 +83,35 @@ def index():
         print(f"INDEX ERROR: {e}")
         featured, gallery = [], []
 
-    return render_template("index.html", featured=featured, gallery=gallery)
+    template_file = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "templates", "index.html")
+    )
+    try:
+        template_mtime = datetime.fromtimestamp(
+            os.path.getmtime(template_file), timezone.utc
+        ).strftime("%Y-%m-%d %H:%M:%S UTC")
+    except Exception:
+        template_mtime = "unknown"
+
+    commit_sha = (os.environ.get("VERCEL_GIT_COMMIT_SHA") or "local")[:7]
+    template_version = f"{commit_sha} | {template_mtime}"
+
+    return render_template(
+        "index.html",
+        featured=featured,
+        gallery=gallery,
+        template_version=template_version
+    )
+
+
+@app.after_request
+def add_no_cache_headers(response):
+    # Avoid stale HTML in browser/proxy cache while iterating on template content.
+    if response.content_type and response.content_type.startswith("text/html"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 
 @app.route("/upload", methods=["POST"])
