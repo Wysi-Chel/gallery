@@ -15,9 +15,10 @@ app = Flask(__name__, template_folder="../templates")
 app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret")
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
-app.config["MAX_CONTENT_LENGTH"] = int(
-    os.environ.get("MAX_UPLOAD_SIZE_MB", "25")
-) * 1024 * 1024
+MAX_FILE_SIZE_MB = int(os.environ.get("MAX_FILE_SIZE_MB", "25"))
+MAX_REQUEST_SIZE_MB = int(os.environ.get("MAX_REQUEST_SIZE_MB", "100"))
+MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_SIZE_MB * 1024 * 1024
 
 # ── Cloudinary Init ──
 cloudinary.config(
@@ -44,6 +45,18 @@ db = firestore.client()
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def get_file_size_bytes(file_storage):
+    try:
+        stream = file_storage.stream
+        current_pos = stream.tell()
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(current_pos)
+        return size
+    except Exception:
+        return 0
 
 
 @app.route("/")
@@ -73,43 +86,62 @@ def index():
 @app.route("/upload", methods=["POST"])
 def upload():
     try:
-        if "photo" not in request.files:
+        files = [f for f in request.files.getlist("photo") if f and f.filename]
+        if not files:
             flash("No file selected.", "error")
             return redirect(url_for("index"))
 
-        file    = request.files["photo"]
         caption = request.form.get("caption", "").strip()
         section = request.form.get("section", "gallery")
+        uploaded_count = 0
+        invalid_count = 0
+        too_large_count = 0
+        failed_count = 0
 
-        if file.filename == "":
-            flash("No file selected.", "error")
-            return redirect(url_for("index"))
+        for file in files:
+            if not allowed_file(file.filename):
+                invalid_count += 1
+                continue
 
-        if file and allowed_file(file.filename):
-            # Upload to Cloudinary
-            result = cloudinary.uploader.upload(
-                file,
-                folder="couple_gallery",
-                public_id=uuid.uuid4().hex,
-                overwrite=False,
-                resource_type="image"
+            file_size = get_file_size_bytes(file)
+            if file_size > MAX_FILE_SIZE_BYTES:
+                too_large_count += 1
+                continue
+
+            try:
+                result = cloudinary.uploader.upload(
+                    file,
+                    folder="couple_gallery",
+                    public_id=uuid.uuid4().hex,
+                    overwrite=False,
+                    resource_type="image"
+                )
+
+                db.collection("photos").add({
+                    "url": result["secure_url"],
+                    "public_id": result["public_id"],
+                    "caption": caption,
+                    "section": section,
+                    "uploaded_at": firestore.SERVER_TIMESTAMP
+                })
+                uploaded_count += 1
+            except Exception as upload_err:
+                print(f"SINGLE UPLOAD ERROR: {upload_err}")
+                failed_count += 1
+
+        if uploaded_count:
+            flash(f"{uploaded_count} photo(s) uploaded!", "success")
+        if invalid_count:
+            flash(f"{invalid_count} file(s) skipped due to invalid file type.", "error")
+        if too_large_count:
+            flash(
+                f"{too_large_count} file(s) skipped: each file must be {MAX_FILE_SIZE_MB}MB or less.",
+                "error"
             )
-
-            public_url  = result["secure_url"]
-            public_id   = result["public_id"]
-
-            # Save metadata to Firestore
-            db.collection("photos").add({
-                "url":         public_url,
-                "public_id":   public_id,
-                "caption":     caption,
-                "section":     section,
-                "uploaded_at": firestore.SERVER_TIMESTAMP
-            })
-
-            flash("Photo uploaded!", "success")
-        else:
-            flash("Invalid file type.", "error")
+        if failed_count:
+            flash(f"{failed_count} file(s) failed to upload. Please try again.", "error")
+        if not (uploaded_count or invalid_count or too_large_count or failed_count):
+            flash("No file selected.", "error")
 
     except Exception as e:
         print(f"UPLOAD ERROR: {e}")
@@ -133,6 +165,9 @@ def replace(photo_id):
 
         if not allowed_file(file.filename):
             flash("Invalid file type.", "error")
+            return redirect(url_for("index"))
+        if get_file_size_bytes(file) > MAX_FILE_SIZE_BYTES:
+            flash(f"Replacement failed: file must be {MAX_FILE_SIZE_MB}MB or less.", "error")
             return redirect(url_for("index"))
 
         doc_ref = db.collection("photos").document(photo_id)
@@ -196,6 +231,8 @@ def delete(photo_id):
 
 @app.errorhandler(RequestEntityTooLarge)
 def handle_file_too_large(_error):
-    max_size_mb = app.config["MAX_CONTENT_LENGTH"] // (1024 * 1024)
-    flash(f"Upload too large. Maximum allowed size is {max_size_mb}MB.", "error")
+    flash(
+        f"Upload payload too large. Maximum total size per upload is {MAX_REQUEST_SIZE_MB}MB.",
+        "error"
+    )
     return redirect(url_for("index"))

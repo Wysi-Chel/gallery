@@ -439,7 +439,7 @@
   <div class="modal">
     <button class="modal-close" onclick="closeModal()">✕</button>
     <h3>Upload Photos</h3>
-    <p class="sub">JPG, PNG, WEBP or GIF &nbsp;·&nbsp; Max 25MB per upload &nbsp;·&nbsp; Saved to Cloudinary</p>
+    <p class="sub">JPG, PNG, WEBP or GIF &nbsp;·&nbsp; Max 25MB per file (100MB total) &nbsp;·&nbsp; Saved to Cloudinary</p>
     <form id="uploadForm" method="POST" action="/upload" enctype="multipart/form-data">
       <div class="form-group">
         <label>Caption</label>
@@ -455,7 +455,7 @@
       <div class="form-group">
         <label>Photos</label>
         <div class="drop-zone" id="dropZone">
-          <input type="file" name="photo" id="fileInput" accept="image/*" required onchange="handleUploadFileChange(this)"/>
+          <input type="file" name="photo" id="fileInput" accept="image/*" multiple required onchange="handleUploadFileChange(this)"/>
           <div class="drop-zone-icon">🖼</div>
           <p>Drag &amp; drop or click to choose files</p>
           <p class="file-chosen" id="fileChosen"></p>
@@ -509,12 +509,13 @@
     <h2 class="section-title">Every <em>little</em> moment</h2>
     {% if gallery %}
       {% if gallery|length >= 3 %}
+        {% set carousel_photos = gallery[:3] %}
         <div class="gallery-tools">
           <button type="button" class="gallery-toggle-btn" onclick="openGalleryCollage()">See full collage</button>
         </div>
         <div class="gallery-scene">
-          <div class="gallery-a3d" style="--n: {{ gallery|length }};">
-            {% for photo in gallery %}
+          <div class="gallery-a3d" style="--n: {{ carousel_photos|length }};">
+            {% for photo in carousel_photos %}
               <article class="gallery-item"
                 style="--i: {{ loop.index0 }};"
                 data-url="{{ photo.url }}"
@@ -637,7 +638,8 @@
   function closeGalleryCollageOutside(e) {
     if (e.target === document.getElementById('galleryCollageModal')) closeGalleryCollage();
   }
-  const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+  const MAX_FILE_BYTES = 25 * 1024 * 1024;
+  const MAX_BATCH_BYTES = 100 * 1024 * 1024;
 
   function showFileName(input) {
     const chosen = document.getElementById('fileChosen');
@@ -653,11 +655,22 @@
       showFileName(input);
       return;
     }
-    const file = input.files[0];
-    if (file.size > MAX_UPLOAD_BYTES) {
-      const maxMb = Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024));
-      alert(`Selected file is too large. Please choose a photo up to ${maxMb}MB.`);
+    const files = Array.from(input.files);
+    const oversizedCount = files.filter(file => file.size > MAX_FILE_BYTES).length;
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+    if (oversizedCount > 0) {
+      const maxMb = Math.floor(MAX_FILE_BYTES / (1024 * 1024));
+      alert(`${oversizedCount} selected file(s) are too large. Each photo must be up to ${maxMb}MB.`);
       input.value = '';
+      showFileName(input);
+      return;
+    }
+    if (totalBytes > MAX_BATCH_BYTES) {
+      const maxMb = Math.floor(MAX_BATCH_BYTES / (1024 * 1024));
+      alert(`Total upload is too large. Please keep the batch up to ${maxMb}MB.`);
+      input.value = '';
+      showFileName(input);
+      return;
     }
     showFileName(input);
   }
@@ -669,6 +682,12 @@
   }
   function submitFeaturedReplacement(input) {
     if (!input.files || !input.files.length) return;
+    if (input.files[0].size > MAX_FILE_BYTES) {
+      const maxMb = Math.floor(MAX_FILE_BYTES / (1024 * 1024));
+      alert(`Replacement photo is too large. Please choose a file up to ${maxMb}MB.`);
+      input.value = '';
+      return;
+    }
     if (!confirm('Replace this featured photo?')) {
       input.value = '';
       return;
@@ -684,13 +703,62 @@
   });
   const uploadForm = document.getElementById('uploadForm');
   if (uploadForm) {
-    uploadForm.addEventListener('submit', e => {
+    uploadForm.addEventListener('submit', async e => {
       const input = document.getElementById('fileInput');
       if (!input || !input.files || !input.files.length) return;
-      if (input.files[0].size > MAX_UPLOAD_BYTES) {
+      const files = Array.from(input.files);
+      const oversizedCount = files.filter(file => file.size > MAX_FILE_BYTES).length;
+      const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+      if (oversizedCount > 0) {
         e.preventDefault();
-        const maxMb = Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024));
-        alert(`Selected file is too large. Please choose a photo up to ${maxMb}MB.`);
+        const maxMb = Math.floor(MAX_FILE_BYTES / (1024 * 1024));
+        alert(`${oversizedCount} selected file(s) are too large. Each photo must be up to ${maxMb}MB.`);
+        return;
+      }
+      if (totalBytes > MAX_BATCH_BYTES) {
+        e.preventDefault();
+        const maxMb = Math.floor(MAX_BATCH_BYTES / (1024 * 1024));
+        alert(`Total upload is too large. Please keep the batch up to ${maxMb}MB.`);
+        return;
+      }
+
+      if (files.length > 1) {
+        e.preventDefault();
+
+        const submitBtn = uploadForm.querySelector('.btn-submit');
+        const originalLabel = submitBtn ? submitBtn.textContent : '';
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Uploading...';
+        }
+
+        const captionInput = uploadForm.querySelector('input[name="caption"]');
+        const sectionInput = uploadForm.querySelector('select[name="section"]');
+        const caption = captionInput ? captionInput.value : '';
+        const section = sectionInput ? sectionInput.value : 'gallery';
+
+        try {
+          for (const file of files) {
+            const formData = new FormData();
+            formData.append('caption', caption);
+            formData.append('section', section);
+            formData.append('photo', file);
+
+            const resp = await fetch('/upload', { method: 'POST', body: formData });
+            if (!resp.ok) {
+              throw new Error(`Upload failed with status ${resp.status}`);
+            }
+          }
+          window.location.reload();
+        } catch (err) {
+          alert('One or more uploads failed. If you are on Vercel, each file must stay under 4.5MB.');
+          console.error(err);
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalLabel || 'Upload to Cloudinary';
+          }
+        }
       }
     });
   }
